@@ -3,3 +3,5 @@ MixrAi/db.sqlite3
 MixrAi/migrations/
 MixrAi/__pycache__/
 MixrAI/MixrAi/db.sqlite3
+
+.env

@@ -1,3 +1,4 @@
+import os
 import json
 import openai
 
@@ -6,11 +7,12 @@ from mixr.constants import TOOLS
 from termcolor import colored
 
 
-class AiInterface():
+class AiInterface:
     def __init__(self):
         self.SEED = 42
+
         self.client = openai.OpenAI(
-            api_key="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"  # TODO - get from env
+            api_key=os.getenv("OPENAI_API_KEY")
         )
 
         self.conversation_history = []
@@ -53,7 +55,7 @@ class AiInterface():
     def send_message(self):
         messages = [
             {"role": "system", "content": "Answer the user's question about cocktails by querying the Django database."},
-            {"role": "user", "content": "What are some Christmas themed drinks I can make?"},
+            {"role": "user", "content": "What are some cocktails I can serve in a Collins glass?"},
             # {"role": "user", "content": "I have the following ingredients: Lime Vodka, Apple Juice, Soda water, Lemonade, Orange Juice, Ginger Ale, Fruit Punch, Rum and Ice what are the cocktails I can make?"},
         ]
 
@@ -75,6 +77,7 @@ class AiInterface():
     # Database functions
     def ask_database(self, query):
         with connection.cursor() as cursor:
+            cursor.execute(query)
             try:
                 rows = cursor.fetchall()
                 results = str(rows)

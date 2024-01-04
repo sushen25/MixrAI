@@ -3,10 +3,10 @@ FROM python:3.12
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
+COPY . /usr/src/app/
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --upgrade pip
-COPY ./requirements.txt /usr/src/app/requirements.txt
 RUN pip install -r requirements.txt
 
 # Make port 8000 available to the world outside this container
