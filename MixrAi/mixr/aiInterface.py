@@ -1,7 +1,6 @@
 import os
 import json
 import openai
-
 from django.db import connection
 from mixr.constants import TOOLS
 from termcolor import colored
@@ -19,6 +18,9 @@ class AiInterface:
 
     def add_message(self, role, content):
         message = {"role": role, "content": content}
+        self.conversation_history.append(message)
+
+    def add_raw_message(self, message):
         self.conversation_history.append(message)
 
     def display_conversation(self, detailed=False):
@@ -48,31 +50,31 @@ class AiInterface:
             tools=TOOLS,
         )
     
-    def chat_completion_with_function_execution(messages):
-        pass
+    def chat_completion_with_function_execution(self):
+        response = self.chat_completion_request(self.conversation_history)
+        print(response)
+        print("----------------")
+
+        response_message = response.choices[0].message
+        tool_calls = response_message.tool_calls
+        
+        if tool_calls:
+            self.add_raw_message(response_message)
+            for tool_call in tool_calls:
+                results = self.execute_function_call(response_message)
+                self.add_raw_message({"role": "tool", "tool_call_id": tool_call.id, "name": tool_call.function.name, "content": results})
+            self.chat_completion_with_function_execution()
+        else:
+            self.add_message("assistant", response.choices[0].message.content)
 
 
     def send_message(self):
-        messages = [
-            {"role": "system", "content": "Answer the user's question about cocktails by querying the Django database."},
-            {"role": "user", "content": "What are some cocktails I can serve in a Collins glass?"},
-            # {"role": "user", "content": "I have the following ingredients: Lime Vodka, Apple Juice, Soda water, Lemonade, Orange Juice, Ginger Ale, Fruit Punch, Rum and Ice what are the cocktails I can make?"},
-        ]
+        self.conversation_history.append({"role": "system", "content": "Answer the user's question about cocktails by querying the Django database."})
+        self.conversation_history.append({"role": "user", "content": "What are some easy cocktails I can make?"})
 
-        chat_response = self.chat_completion_request(messages)
-        print("1 ------------------")
-        print(chat_response)
-        print("2 ------------------")
-
-        assistant_message = chat_response.choices[0].message
-        messages.append({"role": "assistant", "content": assistant_message.tool_calls[0].function.name})
-
-        if chat_response.choices[0].finish_reason == "tool_calls":
-            results = self.execute_function_call(assistant_message)
-            print("FUNCTION EXECUTION RESULTS: ", results)
-            messages.append({"role": "tool", "tool_call_id": assistant_message.tool_calls[0].id, "name": assistant_message.tool_calls[0].function.name, "content": results})
-        print("3 ------------------")
-        self.pretty_print_conversation(messages)
+        self.chat_completion_with_function_execution()
+        self.pretty_print_conversation(self.conversation_history)
+        self.conversation_history = []
 
     # Database functions
     def ask_database(self, query):
@@ -90,7 +92,6 @@ class AiInterface:
         function_name = message.tool_calls[0].function.name
         if function_name == "ask_database":
             query = message.tool_calls[0].function.arguments
-            print("QUERY: ", query)
             query = json.loads(query)["query"]
             print("QUERY: ", query)
             results = self.ask_database(query)
@@ -108,14 +109,23 @@ class AiInterface:
         }
         
         for message in messages:
-            if message["role"] == "system":
-                print(colored(f"system: {message['content']}\n", role_to_color[message["role"]]))
-            elif message["role"] == "user":
-                print(colored(f"user: {message['content']}\n", role_to_color[message["role"]]))
-            elif message["role"] == "assistant" and message.get("function_call"):
-                print(colored(f"assistant: {message['function_call']}\n", role_to_color[message["role"]]))
-            elif message["role"] == "assistant" and not message.get("function_call"):
-                print(colored(f"assistant: {message['content']}\n", role_to_color[message["role"]]))
-            elif message["role"] == "tool":
-                print(colored(f"function ({message['name']}): {message['content']}\n", role_to_color[message["role"]]))
+            try:
+                role = message["role"]
+                content = message["content"]
+                function_call = message.get("function_call")
+            except TypeError:
+                role = message.role
+                content = message.content
+                function_call = message.tool_calls[0].function.name
+
+            if role == "system":
+                print(colored(f"system: {content}\n", role_to_color[role]))
+            elif role == "user":
+                print(colored(f"user: {content}\n", role_to_color[role]))
+            elif role == "assistant" and function_call:
+                print(colored(f"assistant: {function_call}\n", role_to_color[role]))
+            elif role == "assistant" and not function_call:
+                print(colored(f"assistant: {content}\n", role_to_color[role]))
+            elif role == "tool":
+                print(colored(f"function ({message['name']}): {content}\n", role_to_color[role]))
 

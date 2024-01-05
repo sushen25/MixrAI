@@ -46,6 +46,8 @@ TOOLS = [
                                 {DATABASE_SCHEMA}
                                 The query should be returned in PLAIN TEXT, not in JSON.
                                 The query should not contain unnecessary whitespace and should be written on one line.
+                                The query should be able to access the Django database accurately and return the correct results, including the use of '__' to span relationships.
+                                The querys should use SQL joins when spanning Many to Many relationships.
                                 """,
                     }
                 },
